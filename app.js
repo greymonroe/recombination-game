@@ -126,14 +126,16 @@ function gradient(segs, len) {
 }
 const mkHead = (c) => `<div class="mk-head">${CHRS[c].markers.map(([n, p]) => `<span style="left:${pct(p, CHRS[c].len)}">${n}</span>`).join('')}</div>`;
 
-function karyo(haps, { head = false, lab = false } = {}) {
+const chrLab = (c, short) => `<div class="lab">${short ? 'Chr' : 'Chromosome'} ${c + 1}</div>`;
+// calls: base calls stacked under each marker, one per chromosome drawn
+// (top base = top chromosome), colored by which parent the base came from.
+function karyo(haps, { head = false, short = false, calls = false } = {}) {
   return `<div class="karyo">${CHRS.map((ch, c) => `<div class="chrom" style="flex:${ch.len}">
-    ${lab ? `<div class="lab">Chr ${c + 1}</div>` : ''}${head ? mkHead(c) : ''}
+    ${chrLab(c, short)}${head ? mkHead(c) : ''}
     <div class="bars">${haps.map((h) => `<div class="bar" style="background:${gradient(h[c], ch.len)}"><i class="cen" style="left:${pct(ch.cen, ch.len)}"></i></div>`).join('')}
-    ${ch.markers.map(([, p]) => `<i class="tick" style="left:${pct(p, ch.len)}"></i>`).join('')}</div></div>`).join('')}</div>`;
+    ${ch.markers.map(([, p]) => `<i class="tick" style="left:${pct(p, ch.len)}"></i>`).join('')}</div>
+    ${calls ? `<div class="calls">${MK.filter((m) => m.c === c).map((m) => `<span class="callcol" style="left:${pct(m.pos, ch.len)}">${haps.map((h) => { const a = alleleAt(h[c], m.pos); return `<b class="a${a}">${m.base[a]}</b>`; }).join('')}</span>`).join('')}</div>` : ''}</div>`).join('')}</div>`;
 }
-// Base calls at each site, colored by which parent the base came from. With
-// two haplotypes the order matches the cartoon: top chromosome / bottom one.
 const genoName = (m, g) => (g === 0 ? `${m.base[0]}/${m.base[0]}` : g === 1 ? `${m.base[0]}/${m.base[1]}` : `${m.base[1]}/${m.base[1]}`);
 function chips(haps) {
   return `<div class="chips">${MK.map((m, i) => {
@@ -144,10 +146,10 @@ function chips(haps) {
 }
 
 $('#cross').innerHTML = `<div class="cross">
-  <div><div class="who">Blue parent</div>${karyo([pure(0), pure(0)])}${chips([pure(0)])}</div><div class="x">×</div>
-  <div><div class="who">Red parent</div>${karyo([pure(1), pure(1)])}${chips([pure(1)])}</div>
+  <div><div class="who">Blue parent</div>${karyo([pure(0), pure(0)], { short: true })}${chips([pure(0)])}</div><div class="x">×</div>
+  <div><div class="who">Red parent</div>${karyo([pure(1), pure(1)], { short: true })}${chips([pure(1)])}</div>
   <div class="arrow">↓</div>
-  <div class="f1"><div class="who">F1 (selfed to make the offspring)</div>${karyo([pure(0), pure(1)], { head: true })}${chips([pure(0), pure(1)])}</div></div>`;
+  <div class="f1"><div class="who">F1 (selfed to make the offspring)</div>${karyo([pure(0), pure(1)], { head: true, calls: true })}</div></div>`;
 
 // ---------- heat map + detail ----------
 function mix(t) {
@@ -288,7 +290,7 @@ const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').match
 let anim = null;
 
 function meiosisCol(m, w) {
-  return `<div class="mcol" data-w="${w}"><h3>${w ? 'Pollen' : 'Egg'}</h3>${CHRS.map((ch, c) => `<div class="mbiv" data-c="${c}" style="width:${pct(ch.len, CHRS[0].len)}">${mkHead(c)}
+  return `<div class="mcol" data-w="${w}"><h3>${w ? 'Pollen' : 'Egg'}</h3>${CHRS.map((ch, c) => `<div class="mbiv" data-c="${c}" style="width:${pct(ch.len, CHRS[0].len)}">${chrLab(c)}${mkHead(c)}
     <div class="strands">${[0, 1, 2, 3].map((r) => `<div class="strand" data-r="${r}" style="top:${M_Y[r]}px;background:${COL[r < 2 ? 0 : 1]}"></div>`).join('')}
     ${ch.markers.map(([, p]) => `<i class="mline" style="left:${pct(p, ch.len)}"></i>`).join('')}
     ${m.chr[c].xos.map((o, k) => {
@@ -305,11 +307,11 @@ function animate() {
     nxo ? `Crossovers (✕) swap segments between non-sister chromatids: ${nxo} in these two meioses.` : 'No crossovers happened in these two meioses.',
     'Each gamete receives one chromatid of each chromosome.',
     'The egg and the pollen come together.',
-    `Offspring ${num}: its base calls at sites A–G come from the two chromosomes it inherited (egg on top, pollen below).`,
+    `Offspring ${num}: the base calls under each marker are read from the two chromosomes it inherited (egg on top, pollen below).`,
   ];
   st.innerHTML = `<div class="meio">${meiosisCol(ms[0], 0)}${meiosisCol(ms[1], 1)}</div>
     <p class="hint" id="cap"></p>
-    <div class="kid"><div class="id">Offspring ${num}</div>${karyo(kid.g, { head: true, lab: true })}${chips(kid.g)}</div>`;
+    <div class="kid"><div class="id">Offspring ${num}</div>${karyo(kid.g, { head: true, calls: true })}</div>`;
   const timers = [];
   let finished = false;
   const strand = (w, c, r) => st.querySelector(`.mcol[data-w="${w}"] .mbiv[data-c="${c}"] .strand[data-r="${r}"]`);
@@ -346,7 +348,7 @@ function animate() {
   timers.push(setTimeout(() => setPhase(1), 900), setTimeout(() => setPhase(2), 2300), setTimeout(fly, 3500), setTimeout(finish, 4600));
 }
 
-$('#sim-head').innerHTML = CHRS.map((ch, c) => `<div style="flex:${ch.len};min-width:0">${mkHead(c)}</div>`).join('');
+$('#sim-head').innerHTML = CHRS.map((ch, c) => `<div class="chrom" style="flex:${ch.len}">${chrLab(c)}${mkHead(c)}</div>`).join('');
 // A click during an animation completes the offspring in progress first.
 $('#sim-one').onclick = () => { if (anim) anim.finish(); animate(); };
 $('#sim-many').onclick = () => {
