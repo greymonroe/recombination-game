@@ -2,9 +2,9 @@
 
 // ---------- genome ----------
 // Positions are in centimorgans; one crossover on a bivalent is worth 50 cM.
-// Each marker is a SNP: [site name, position, blue-parent base, red-parent base].
+// Each marker is a SNP: [site name, position, Parent 1 (blue) base, Parent 2 (red) base].
 const CHRS = [
-  { name: 'Chromosome 1', len: 120, cen: 62, markers: [['A', 6, 'G', 'T'], ['B', 16, 'C', 'T'], ['C', 44, 'A', 'G'], ['D', 112, 'T', 'C']] },
+  { name: 'Chromosome 1', len: 120, cen: 62, markers: [['A', 6, 'A', 'T'], ['B', 16, 'C', 'T'], ['C', 44, 'A', 'G'], ['D', 112, 'T', 'C']] },
   { name: 'Chromosome 2', len: 80, cen: 48, markers: [['E', 8, 'G', 'A'], ['F', 30, 'A', 'C'], ['G', 72, 'C', 'G']] },
 ];
 const MK = [];
@@ -52,7 +52,10 @@ function simMeiosis() {
   return { chr, g: chr.map((b) => b.rows[b.pick]) };
 }
 
-const makeKid = (g1, g2) => ({ g: [g1, g2], geno: MK.map((m) => alleleAt(g1[m.c], m.pos) + alleleAt(g2[m.c], m.pos)) });
+// Testcross: the F1 gamete (top chromosome) meets a tester gamete that is
+// always Parent 2, so geno records which allele the F1 passed on (0 or 1).
+const TESTER = pure(1);
+const makeKid = (g) => ({ g: [g, TESTER], geno: MK.map((m) => alleleAt(g[m.c], m.pos)) });
 
 // Resolve crossovers on a bivalent into four chromatids. Strands 0,1 start as
 // allele 0 (sisters) and 2,3 as allele 1. Each chromatid keeps its centromere
@@ -90,25 +93,16 @@ function resolveBivalent(ch, xos) {
   return { rows, links };
 }
 
-// ---------- recombination frequency from F2 genotypes ----------
+// ---------- recombination frequency from testcross genotypes ----------
 function pairCounts(pop, i, j) {
-  const t = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+  const t = [[0, 0], [0, 0]];
   for (const k of pop) t[k.geno[i]][k.geno[j]]++;
   return t;
 }
-// Maximum likelihood by EM: double heterozygotes are either two parental or
-// two recombinant gametes, so their expected recombinant count depends on r.
+// Recombinant offspring / total: the F1 passed on a new allele combination.
 function estRF(t) {
-  const n = t.flat().reduce((s, v) => s + v, 0);
-  if (!n) return null;
-  const n1 = t[0][1] + t[1][0] + t[1][2] + t[2][1], n2 = t[0][2] + t[2][0], dh = t[1][1];
-  let r = 0.25;
-  for (let it = 0; it < 500; it++) {
-    const r2 = (n1 + 2 * n2 + dh * 2 * r * r / ((1 - r) * (1 - r) + r * r)) / (2 * n);
-    if (Math.abs(r2 - r) < 1e-9) { r = r2; break; }
-    r = r2;
-  }
-  return Math.min(r, 0.5);
+  const n = t[0][0] + t[0][1] + t[1][0] + t[1][1];
+  return n ? (t[0][1] + t[1][0]) / n : null;
 }
 const haldane = (d) => 0.5 * (1 - Math.exp(-2 * d / 100));
 const expectedRF = (i, j) => (MK[i].c === MK[j].c ? haldane(Math.abs(MK[i].pos - MK[j].pos)) : 0.5);
@@ -136,7 +130,7 @@ function karyo(haps, { head = false, short = false, calls = false } = {}) {
     ${ch.markers.map(([, p]) => `<i class="tick" style="left:${pct(p, ch.len)}"></i>`).join('')}</div>
     ${calls ? `<div class="calls">${MK.filter((m) => m.c === c).map((m) => `<span class="callcol" style="left:${pct(m.pos, ch.len)}">${haps.map((h) => { const a = alleleAt(h[c], m.pos); return `<b class="a${a}">${m.base[a]}</b>`; }).join('')}</span>`).join('')}</div>` : ''}</div>`).join('')}</div>`;
 }
-const genoName = (m, g) => (g === 0 ? `${m.base[0]}/${m.base[0]}` : g === 1 ? `${m.base[0]}/${m.base[1]}` : `${m.base[1]}/${m.base[1]}`);
+const genoName = (m, g) => `${m.base[g]}/${m.base[1]}`;
 function chips(haps) {
   return `<div class="chips">${MK.map((m, i) => {
     const sep = i && MK[i - 1].c !== m.c ? '<span class="sep"></span>' : '';
@@ -146,10 +140,12 @@ function chips(haps) {
 }
 
 $('#cross').innerHTML = `<div class="cross">
-  <div><div class="who">Blue parent</div>${karyo([pure(0), pure(0)], { short: true })}${chips([pure(0)])}</div><div class="x">×</div>
-  <div><div class="who">Red parent</div>${karyo([pure(1), pure(1)], { short: true })}${chips([pure(1)])}</div>
+  <div><div class="who">Parent 1</div>${karyo([pure(0), pure(0)], { short: true })}${chips([pure(0)])}</div><div class="x">×</div>
+  <div><div class="who">Parent 2</div>${karyo([pure(1), pure(1)], { short: true })}${chips([pure(1)])}</div>
   <div class="arrow">↓</div>
-  <div class="f1"><div class="who">F1 (selfed to make the offspring)</div>${karyo([pure(0), pure(1)], { head: true, calls: true })}</div></div>`;
+  <div class="f1"><div class="who">F1</div>${karyo([pure(0), pure(1)], { head: true, calls: true })}</div>
+  <div class="arrow">× testcross</div>
+  <div class="f1 tester"><div class="who">Tester (Parent 2)</div>${karyo([pure(1), pure(1)], { short: true })}${chips([pure(1)])}</div></div>`;
 
 // ---------- heat map + detail ----------
 function mix(t) {
@@ -174,7 +170,7 @@ function renderHeat(el, detailEl, pop, st) {
     const x = L + off(j) + 1, y = T + off(i) + 1, r = rf[i][j];
     if (i === j) { s += `<rect x="${x}" y="${y}" width="${S - 2}" height="${S - 2}" rx="5" fill="#eeede8"/>`; continue; }
     const sel = st.sel && ((st.sel[0] === i && st.sel[1] === j) || (st.sel[0] === j && st.sel[1] === i));
-    s += `<g class="cell" data-i="${i}" data-j="${j}"><rect x="${x}" y="${y}" width="${S - 2}" height="${S - 2}" rx="5" fill="${r == null ? '#f6f5f1' : mix(r / 0.5)}" ${sel ? 'stroke="#16161a" stroke-width="2.5"' : ''}/>
+    s += `<g class="cell" data-i="${i}" data-j="${j}"><rect x="${x}" y="${y}" width="${S - 2}" height="${S - 2}" rx="5" fill="${r == null ? '#f6f5f1' : mix(Math.min(1, r / 0.5))}" ${sel ? 'stroke="#16161a" stroke-width="2.5"' : ''}/>
       <text x="${x + S / 2 - 1}" y="${y + S / 2 + 3}" text-anchor="middle" font-size="12" font-weight="600" fill="${r == null ? '#8a8880' : r > 0.27 ? '#fff' : '#16161a'}">${r == null ? '–' : Math.round(r * 100) + '%'}</text></g>`;
   }
   el.innerHTML = s + '</svg><div class="scale">0% <i></i> 50%</div>';
@@ -189,11 +185,13 @@ function renderHeat(el, detailEl, pop, st) {
   const exp = a.c === b.c
     ? `<p class="note">These markers are ${Math.abs(a.pos - b.pos)} cM apart on chromosome ${a.c + 1}. With unlimited offspring the estimate would settle near ${(100 * expectedRF(i, j)).toFixed(1)}%.</p>`
     : '<p class="note">These markers are on different chromosomes, so they assort independently. With unlimited offspring the estimate would settle at 50%.</p>';
-  detailEl.innerHTML = `<div class="detail"><div>Markers <b>${a.n}</b> and <b>${b.n}</b> · ${pop.length} offspring</div>
-    <div class="big">${r == null ? '–' : (100 * r).toFixed(1) + '%'}</div>${exp}
-    <table><tr><th></th>${[0, 1, 2].map((g) => `<th>${b.n}: ${genoName(b, g)}</th>`).join('')}</tr>
-    ${[0, 1, 2].map((g) => `<tr><th>${a.n}: ${genoName(a, g)}</th>${t[g].map((v) => `<td>${v}</td>`).join('')}</tr>`).join('')}</table>
-    <p class="note">Number of offspring with each combination of genotypes at the two markers.</p></div>`;
+  const rec = t[0][1] + t[1][0];
+  detailEl.innerHTML = `<div class="detail"><div>Markers <b>${a.n}</b> and <b>${b.n}</b></div>
+    <div class="big">${r == null ? '–' : (100 * r).toFixed(1) + '%'}</div>
+    <div>${rec} recombinant offspring ÷ ${pop.length} total</div>${exp}
+    <table><tr><th></th>${[0, 1].map((g) => `<th>${b.n}: ${genoName(b, g)}</th>`).join('')}</tr>
+    ${[0, 1].map((g) => `<tr><th>${a.n}: ${genoName(a, g)}</th>${t[g].map((v, h) => `<td class="${g === h ? '' : 'rec'}">${v}</td>`).join('')}</tr>`).join('')}</table>
+    <p class="note">Offspring genotypes at the two markers. Shaded cells are recombinants: the F1 passed on a combination of alleles that neither parent had.</p></div>`;
 }
 
 // ---------- population ----------
@@ -227,8 +225,7 @@ function drawPop() {
         const cuts = [...new Set([...k.g[0][c], ...k.g[1][c]].map((s) => s.e))].sort((p, q) => p - q);
         let from = 0;
         for (const e of cuts) {
-          const z = alleleAt(k.g[0][c], from) + alleleAt(k.g[1][c], from);
-          ctx.fillStyle = z === 1 ? HET : COL[z / 2];
+          ctx.fillStyle = alleleAt(k.g[0][c], from) ? COL[1] : HET;
           ctx.fillRect(x0[c] + from * sc, y, (e - from) * sc, rh - gapRow); from = e;
         }
       }
@@ -241,7 +238,7 @@ function drawPop() {
 
 function renderScatter() {
   const rf = rfMatrix(sim.pop), W = 360, H = 250, l = 38, r = 250, u0 = 272, u1 = 348, top = 14, bot = 204;
-  const X = (d) => l + (r - l) * d / 110, Y = (v) => bot - (bot - top) * v / 0.55;
+  const X = (d) => l + (r - l) * d / 110, Y = (v) => bot - (bot - top) * Math.min(v, 0.62) / 0.62;
   let s = `<svg class="scatter" viewBox="0 0 ${W} ${H}" role="img" aria-label="Recombination frequency against distance between markers">`;
   for (const v of [0, 0.1, 0.2, 0.3, 0.4, 0.5]) {
     s += `<line x1="${l}" x2="${u1}" y1="${Y(v)}" y2="${Y(v)}" stroke="${v === 0.5 ? '#b9b6ad' : '#e9e7e0'}" ${v === 0.5 ? 'stroke-dasharray="3 3"' : ''}/><text x="${l - 6}" y="${Y(v) + 3.5}" text-anchor="end" font-size="10">${v * 100}%</text>`;
@@ -278,8 +275,8 @@ function renderSim() {
 }
 function renderLegend() {
   $('#sim-legend').innerHTML = sim.view === 'hap'
-    ? '<span><i class="sw p1"></i> from blue parent</span><span><i class="sw p2"></i> from red parent</span>'
-    : '<span><i class="sw p1"></i> homozygous blue</span><span><i class="sw het"></i> heterozygous</span><span><i class="sw p2"></i> homozygous red</span>';
+    ? '<span><i class="sw p1"></i> Parent 1 DNA</span><span><i class="sw p2"></i> Parent 2 DNA</span>'
+    : '<span><i class="sw het"></i> heterozygous</span><span><i class="sw p2"></i> homozygous Parent 2</span>';
 }
 
 // ---------- animated single offspring ----------
@@ -290,8 +287,9 @@ const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').match
 let anim = null;
 
 function meiosisCol(m, w) {
-  return `<div class="mcol" data-w="${w}"><h3>${w ? 'Pollen' : 'Egg'}</h3>${CHRS.map((ch, c) => `<div class="mbiv" data-c="${c}" style="width:${pct(ch.len, CHRS[0].len)}">${chrLab(c)}${mkHead(c)}
-    <div class="strands">${[0, 1, 2, 3].map((r) => `<div class="strand" data-r="${r}" style="top:${M_Y[r]}px;background:${COL[r < 2 ? 0 : 1]}"></div>`).join('')}
+  const four = m.chr[0].rows.length === 4;
+  return `<div class="mcol" data-w="${w}"><h3>${w ? 'Tester (Parent 2)' : 'Meiosis in the F1'}</h3>${CHRS.map((ch, c) => `<div class="mbiv" data-c="${c}" style="width:${pct(ch.len, CHRS[0].len)}">${chrLab(c)}${mkHead(c)}
+    <div class="strands">${m.chr[c].rows.map((_, r) => `<div class="strand" data-r="${r}" style="top:${four ? M_Y[r] : 20}px;background:${COL[four && r < 2 ? 0 : 1]}"></div>`).join('')}
     ${ch.markers.map(([, p]) => `<i class="mline" style="left:${pct(p, ch.len)}"></i>`).join('')}
     ${m.chr[c].xos.map((o, k) => {
       const [r1, r2] = m.chr[c].links[k].slice().sort((p, q) => p - q), y1 = M_Y[r1] + M_H / 2, y2 = M_Y[r2] + M_H / 2;
@@ -300,14 +298,15 @@ function meiosisCol(m, w) {
 }
 
 function animate() {
-  const st = $('#stage'), ms = [simMeiosis(), simMeiosis()], kid = makeKid(ms[0].g, ms[1].g), num = sim.pop.length + 1;
+  const tester = { chr: CHRS.map((ch) => ({ xos: [], links: [], pick: 0, rows: [[{ a: 1, e: ch.len }]] })) };
+  const st = $('#stage'), ms = [simMeiosis(), tester], kid = makeKid(ms[0].g), num = sim.pop.length + 1;
   const nxo = ms.reduce((s, m) => s + m.chr.reduce((t, b) => t + b.xos.length, 0), 0);
   const caps = [
-    'Meiosis in the F1: each chromosome has been copied into two sister chromatids, and the blue and red homologs pair up.',
-    nxo ? `Crossovers (✕) swap segments between non-sister chromatids: ${nxo} in these two meioses.` : 'No crossovers happened in these two meioses.',
-    'Each gamete receives one chromatid of each chromosome.',
-    'The egg and the pollen come together.',
-    `Offspring ${num}: the base calls under each marker are read from the two chromosomes it inherited (egg on top, pollen below).`,
+    'Meiosis in the F1: each chromosome has been copied into two sister chromatids, and the Parent 1 and Parent 2 homologs pair up.',
+    nxo ? `Crossovers (✕) swap segments between non-sister chromatids: ${nxo} in this meiosis.` : 'No crossovers happened in this meiosis.',
+    'The F1 gamete receives one chromatid of each chromosome. The tester can only give Parent 2 chromosomes.',
+    'The F1 gamete and the tester gamete come together.',
+    `Offspring ${num}: top chromosome from the F1, bottom from the tester. Wherever the top base differs from the bottom, the F1 passed on Parent 1 DNA.`,
   ];
   st.innerHTML = `<div class="meio">${meiosisCol(ms[0], 0)}${meiosisCol(ms[1], 1)}</div>
     <p class="hint" id="cap"></p>
@@ -353,14 +352,14 @@ $('#sim-head').innerHTML = CHRS.map((ch, c) => `<div class="chrom" style="flex:$
 $('#sim-one').onclick = () => { if (anim) anim.finish(); animate(); };
 $('#sim-many').onclick = () => {
   if (anim) anim.finish();
-  for (let k = +$('#sim-x').value; k > 0; k--) sim.pop.push(makeKid(simGamete(), simGamete()));
+  for (let k = +$('#sim-x').value; k > 0; k--) sim.pop.push(makeKid(simGamete()));
   renderSim();
 };
 $('#sim-x').onchange = (e) => { $('#sim-x-label').textContent = e.target.value; };
 $('#sim-reset').onclick = () => {
   if (anim) anim.finish();
   sim.pop = []; sim.heat.sel = null;
-  $('#stage').innerHTML = '<p class="empty">Simulate one offspring to watch the F1 make an egg and a pollen grain.</p>';
+  $('#stage').innerHTML = '<p class="empty">Simulate one offspring to watch the F1 make a gamete.</p>';
   delete $('#stage').dataset.phase;
   renderSim();
 };

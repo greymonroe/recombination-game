@@ -44,7 +44,7 @@ h3 { font-size: .95rem; margin: 0 0 6px; }
 .btn.ghost { background: transparent; border-color: var(--line); color: var(--ink); }
 .btn.small { padding: 6px 12px; min-height: 36px; font-size: .85rem; }
 .btn:disabled { opacity: .45; cursor: default; }
-.controls { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 14px; position: sticky; top: 0; z-index: 5; background: var(--surface); padding: 6px 0; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 14px; }
 .combo { display: flex; }
 .combo .btn { border-radius: 10px 0 0 10px; }
 .combo select { font: inherit; font-weight: 600; border: 0; border-left: 1px solid rgba(255,255,255,.35); background: #3b2e8a; color: #fff; border-radius: 0 10px 10px 0; padding: 0 8px; min-height: 44px; }
@@ -86,7 +86,8 @@ h3 { font-size: .95rem; margin: 0 0 6px; }
 .cross .who { font-size: .8rem; font-weight: 600; margin-bottom: 4px; }
 .cross .x { font-size: 1.2rem; color: var(--muted); }
 .cross .f1 { grid-column: 1 / -1; max-width: 340px; margin: 0 auto; width: 100%; }
-.cross .arrow { grid-column: 1 / -1; text-align: center; color: var(--muted); line-height: 1; }
+.cross .arrow { grid-column: 1 / -1; text-align: center; color: var(--muted); line-height: 1; font-size: .85rem; font-weight: 600; }
+.cross .tester { max-width: 170px; }
 
 /* animated meiosis */
 .stage { position: relative; }
@@ -127,7 +128,9 @@ h3 { font-size: .95rem; margin: 0 0 6px; }
 .detail { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 12px; font-size: .9rem; }
 .detail .big { font-size: 1.5rem; font-weight: 700; letter-spacing: -.01em; }
 .detail table { border-collapse: collapse; margin-top: 8px; font-size: .85rem; font-variant-numeric: tabular-nums; }
+.detail td.rec { background: var(--accent-tint); font-weight: 700; }
 .detail td, .detail th { border: 1px solid var(--line); padding: 4px 10px; text-align: center; }
+.detail td.rec { background: var(--accent-tint); font-weight: 700; }
 .detail th { color: var(--ink2); font-weight: 600; background: #f6f5f1; }
 .scale { display: flex; align-items: center; gap: 8px; justify-content: center; font-size: .75rem; color: var(--ink2); margin-top: 8px; }
 .scale i { display: block; width: 140px; height: 10px; border-radius: 5px; background: linear-gradient(90deg, #f1f0fa, #4a3aa7); }

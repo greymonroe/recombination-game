@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light">
 <title>Linkage &amp; Recombination Lab</title>
-<meta name="description" content="Simulate meiosis and an F2 population, and watch recombination frequencies emerge between markers.">
+<meta name="description" content="Simulate meiosis and a testcross population, and watch recombination frequencies emerge between markers.">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -13,7 +13,7 @@
   <div class="wrap">
     <p class="eyebrow">PLS 152 · in-class activity</p>
     <h1>Linkage &amp; Recombination Lab</h1>
-    <p class="lede">Two inbred parents were crossed to make an F1 plant. Self the F1, look at the offspring, and measure how often markers recombine.</p>
+    <p class="lede">Two inbred parents were crossed to make an F1 plant. Testcross the F1 back to Parent 2, look at the offspring, and measure how often markers recombine.</p>
   </div>
 </header>
 
@@ -21,11 +21,11 @@
   <section class="card" id="setup">
     <h2>The cross</h2>
     <div id="cross"></div>
-    <p class="note">The organism has two chromosomes (n&nbsp;=&nbsp;2) carrying seven marker sites, <b>A–D</b> on chromosome 1 and <b>E–G</b> on chromosome 2. At each site the <span class="sw p1"></span> blue parent has one DNA base and the <span class="sw p2"></span> red parent has a different one, so the F1 is heterozygous at every site.</p>
+    <p class="note">The organism has two chromosomes (n&nbsp;=&nbsp;2) carrying seven SNP markers, <b>A–D</b> on chromosome 1 and <b>E–G</b> on chromosome 2. At each marker <span class="sw p1"></span> Parent 1 has one DNA base and <span class="sw p2"></span> Parent 2 has a different one, so the F1 is heterozygous everywhere. The tester can only pass on Parent 2 chromosomes, so each offspring's genotype shows exactly which gamete the F1 made.</p>
   </section>
 
   <section class="card">
-    <h2>Make F2 offspring <span class="count" id="sim-n"></span></h2>
+    <h2>Make testcross offspring <span class="count" id="sim-n"></span></h2>
     <div class="controls">
       <button class="btn primary" id="sim-one">Simulate offspring</button>
       <div class="combo">
@@ -36,14 +36,14 @@
       </div>
       <button class="btn ghost" id="sim-reset">Reset</button>
     </div>
-    <div id="stage" class="stage"><p class="empty">Simulate one offspring to watch the F1 make an egg and a pollen grain.</p></div>
+    <div id="stage" class="stage"><p class="empty">Simulate one offspring to watch the F1 make a gamete.</p></div>
   </section>
 
   <section class="card">
-    <h2>F2 population</h2>
+    <h2>Testcross population</h2>
     <div class="row between viewrow">
       <div class="seg" role="group" aria-label="Chromosome view">
-        <button class="on" data-view="hap">Two homologs</button>
+        <button class="on" data-view="hap">Two chromosomes</button>
         <button data-view="zyg">Genotype</button>
       </div>
       <div class="legend" id="sim-legend"></div>
@@ -55,7 +55,7 @@
 
   <section class="card">
     <h2>Recombination frequency between markers</h2>
-    <p class="note">Estimated from the offspring marker genotypes. Tap a square for details.</p>
+    <p class="note">Recombinant offspring ÷ total offspring, counted from the marker genotypes. Tap a square for details.</p>
     <div id="sim-heat"></div>
     <div id="sim-detail"></div>
   </section>
@@ -68,7 +68,7 @@
 </main>
 
 <footer class="wrap foot">
-  <p>Recombination frequencies are maximum-likelihood estimates from F2 genotype counts. Simulated crossovers follow a no-interference (Haldane) model.</p>
+  <p>Recombination frequency is the share of testcross offspring carrying a recombinant F1 gamete. Simulated crossovers follow a no-interference (Haldane) model.</p>
 </footer>
 <div id="tip" class="tip" hidden></div>
 <script src="app.js"></script>
