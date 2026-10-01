@@ -2,15 +2,16 @@
 
 // ---------- genome ----------
 // Positions are in centimorgans; one crossover on a bivalent is worth 50 cM.
+// Each marker is a SNP: [site name, position, blue-parent base, red-parent base].
 const CHRS = [
-  { name: 'Chromosome 1', len: 120, cen: 62, markers: [['A', 6], ['B', 16], ['C', 44], ['D', 112]] },
-  { name: 'Chromosome 2', len: 80, cen: 48, markers: [['E', 8], ['F', 30], ['G', 72]] },
+  { name: 'Chromosome 1', len: 120, cen: 62, markers: [['A', 6, 'G', 'T'], ['B', 16, 'C', 'T'], ['C', 44, 'A', 'G'], ['D', 112, 'T', 'C']] },
+  { name: 'Chromosome 2', len: 80, cen: 48, markers: [['E', 8, 'G', 'A'], ['F', 30, 'A', 'C'], ['G', 72, 'C', 'G']] },
 ];
 const MK = [];
-CHRS.forEach((ch, c) => ch.markers.forEach(([n, pos]) => MK.push({ n, c, pos })));
+CHRS.forEach((ch, c) => ch.markers.forEach(([n, pos, b0, b1]) => MK.push({ n, c, pos, base: [b0, b1] })));
 const TOTAL = CHRS.reduce((s, ch) => s + ch.len, 0);
-const COL = ['#2a78d6', '#eb6834'], HET = '#b9b6ad';
-const MAX_XO = 4, MAX_ROWS = 800;
+const COL = ['#2a78d6', '#e34948'], HET = '#b9b6ad';
+const MAX_ROWS = 800;
 
 const $ = (s) => document.querySelector(s);
 const rnd = (n) => Math.floor(Math.random() * n);
@@ -27,6 +28,7 @@ function poisson(mean) {
   return k - 1;
 }
 
+// Fast path for bulk simulation: one chromatid drawn directly.
 function simGamete() {
   return CHRS.map((ch) => {
     const n = poisson(ch.len / 100);
@@ -37,6 +39,17 @@ function simGamete() {
     segs.push({ a, e: ch.len });
     return segs;
   });
+}
+
+// Full meiosis for the animation: crossovers on the four-chromatid bivalent,
+// then one chromatid of each chromosome goes into the gamete. Same model as
+// simGamete, with the intermediate steps kept for drawing.
+function simMeiosis() {
+  const chr = CHRS.map((ch) => {
+    const xos = Array.from({ length: poisson(ch.len / 50) }, () => ({ x: 1 + Math.random() * (ch.len - 2), i: rnd(2), j: 2 + rnd(2) }));
+    return { xos, pick: rnd(4), ...resolveBivalent(ch, xos) };
+  });
+  return { chr, g: chr.map((b) => b.rows[b.pick]) };
 }
 
 const makeKid = (g1, g2) => ({ g: [g1, g2], geno: MK.map((m) => alleleAt(g1[m.c], m.pos) + alleleAt(g2[m.c], m.pos)) });
@@ -119,22 +132,20 @@ function karyo(haps, { head = false, lab = false } = {}) {
     <div class="bars">${haps.map((h) => `<div class="bar" style="background:${gradient(h[c], ch.len)}"><i class="cen" style="left:${pct(ch.cen, ch.len)}"></i></div>`).join('')}
     ${ch.markers.map(([, p]) => `<i class="tick" style="left:${pct(p, ch.len)}"></i>`).join('')}</div></div>`).join('')}</div>`;
 }
-const genoName = (m, g) => (g === 0 ? m.n + m.n : g === 1 ? m.n + m.n.toLowerCase() : m.n.toLowerCase().repeat(2));
+// Base calls at each site, colored by which parent the base came from. With
+// two haplotypes the order matches the cartoon: top chromosome / bottom one.
+const genoName = (m, g) => (g === 0 ? `${m.base[0]}/${m.base[0]}` : g === 1 ? `${m.base[0]}/${m.base[1]}` : `${m.base[1]}/${m.base[1]}`);
 function chips(haps) {
   return `<div class="chips">${MK.map((m, i) => {
     const sep = i && MK[i - 1].c !== m.c ? '<span class="sep"></span>' : '';
-    if (haps.length === 1) {
-      const a = alleleAt(haps[0][m.c], m.pos);
-      return `${sep}<span class="chip a${a}">${a ? m.n.toLowerCase() : m.n}</span>`;
-    }
-    const g = alleleAt(haps[0][m.c], m.pos) + alleleAt(haps[1][m.c], m.pos);
-    return `${sep}<span class="chip ${g === 1 ? 'h' : 'a' + g / 2}">${genoName(m, g)}</span>`;
+    const calls = haps.map((h) => { const a = alleleAt(h[m.c], m.pos); return `<b class="a${a}">${m.base[a]}</b>`; }).join('<i>/</i>');
+    return `${sep}<span class="chip"><span class="site">${m.n}</span><span class="call">${calls}</span></span>`;
   }).join('')}</div>`;
 }
 
 $('#cross').innerHTML = `<div class="cross">
-  <div><div class="who">Blue parent</div>${karyo([pure(0), pure(0)])}</div><div class="x">×</div>
-  <div><div class="who">Orange parent</div>${karyo([pure(1), pure(1)])}</div>
+  <div><div class="who">Blue parent</div>${karyo([pure(0), pure(0)])}${chips([pure(0)])}</div><div class="x">×</div>
+  <div><div class="who">Red parent</div>${karyo([pure(1), pure(1)])}${chips([pure(1)])}</div>
   <div class="arrow">↓</div>
   <div class="f1"><div class="who">F1 (selfed to make the offspring)</div>${karyo([pure(0), pure(1)], { head: true })}${chips([pure(0), pure(1)])}</div></div>`;
 
@@ -143,9 +154,9 @@ function mix(t) {
   const a = [241, 240, 250], b = [74, 58, 167];
   return `rgb(${a.map((v, k) => Math.round(v + (b[k] - v) * t)).join(',')})`;
 }
-function renderHeat(el, detailEl, pop, st, showExpected) {
-  const rf = rfMatrix(pop), S = 44, L = 24, T = 38, GAP = 8;
-  const off = (i) => i * S + (MK[i].c ? GAP : 0);
+function renderHeat(el, detailEl, pop, st) {
+  const rf = rfMatrix(pop), S = 44, L = 24, T = 38, GAPC = 8;
+  const off = (i) => i * S + (MK[i].c ? GAPC : 0);
   const size = L + off(MK.length - 1) + S;
   let s = `<svg class="heat" viewBox="0 0 ${size} ${T + size - L}" role="img" aria-label="Recombination frequency between each pair of markers">`;
   CHRS.forEach((ch, c) => {
@@ -169,136 +180,21 @@ function renderHeat(el, detailEl, pop, st, showExpected) {
     const g = e.target.closest('.cell');
     if (!g) return;
     st.sel = [+g.dataset.i, +g.dataset.j].sort((p, q) => p - q);
-    renderHeat(el, detailEl, pop, st, showExpected);
+    renderHeat(el, detailEl, pop, st);
   };
   if (!st.sel) { detailEl.innerHTML = ''; return; }
   const [i, j] = st.sel, a = MK[i], b = MK[j], t = pairCounts(pop, i, j), r = rf[i][j];
-  const same = a.c === b.c;
-  let exp = '';
-  if (showExpected) {
-    exp = same
-      ? `<p class="note">These markers are ${Math.abs(a.pos - b.pos)} cM apart on chromosome ${a.c + 1}. With unlimited offspring the estimate would settle near ${(100 * expectedRF(i, j)).toFixed(1)}%.</p>`
-      : '<p class="note">These markers are on different chromosomes, so they assort independently. With unlimited offspring the estimate would settle at 50%.</p>';
-  }
+  const exp = a.c === b.c
+    ? `<p class="note">These markers are ${Math.abs(a.pos - b.pos)} cM apart on chromosome ${a.c + 1}. With unlimited offspring the estimate would settle near ${(100 * expectedRF(i, j)).toFixed(1)}%.</p>`
+    : '<p class="note">These markers are on different chromosomes, so they assort independently. With unlimited offspring the estimate would settle at 50%.</p>';
   detailEl.innerHTML = `<div class="detail"><div>Markers <b>${a.n}</b> and <b>${b.n}</b> · ${pop.length} offspring</div>
     <div class="big">${r == null ? '–' : (100 * r).toFixed(1) + '%'}</div>${exp}
-    <table><tr><th></th>${[0, 1, 2].map((g) => `<th>${genoName(b, g)}</th>`).join('')}</tr>
-    ${[0, 1, 2].map((g) => `<tr><th>${genoName(a, g)}</th>${t[g].map((v) => `<td>${v}</td>`).join('')}</tr>`).join('')}</table>
+    <table><tr><th></th>${[0, 1, 2].map((g) => `<th>${b.n}: ${genoName(b, g)}</th>`).join('')}</tr>
+    ${[0, 1, 2].map((g) => `<tr><th>${a.n}: ${genoName(a, g)}</th>${t[g].map((v) => `<td>${v}</td>`).join('')}</tr>`).join('')}</table>
     <p class="note">Number of offspring with each combination of genotypes at the two markers.</p></div>`;
 }
 
-// ---------- Activity 1: by hand ----------
-const KEY = 'recomb-hand-v1';
-const hand = { pop: [], step: 0, phase: 'place', xos: [[], []], products: null, egg: null, pollen: null, heat: {} };
-try { hand.pop = (JSON.parse(localStorage.getItem(KEY)) || []).map(([g1, g2]) => makeKid(g1, g2)); } catch (e) { hand.pop = []; }
-const saveHand = () => { try { localStorage.setItem(KEY, JSON.stringify(hand.pop.map((k) => k.g))); } catch (e) { /* storage unavailable */ } };
-const ROW_Y = [0, 17, 51, 68], ROW_H = 14;
-
-function bivalentHTML(c) {
-  const ch = CHRS[c], { rows, links } = resolveBivalent(ch, hand.xos[c]);
-  return `<div class="biv-wrap"><div class="chrom"><div class="lab">${ch.name}</div>${mkHead(c)}</div>
-    <div class="bivalent" data-c="${c}"><div class="strands">
-    ${rows.map((segs, r) => `<div class="strand" style="top:${ROW_Y[r]}px;background:${gradient(segs, ch.len)}"><i class="cenp" style="left:${pct(ch.cen, ch.len)};top:2px"></i></div>`).join('')}
-    ${ch.markers.map(([, p]) => `<i class="mline" style="left:${pct(p, ch.len)}"></i>`).join('')}
-    ${hand.xos[c].map((o, k) => {
-      const [r1, r2] = links[k].sort((p, q) => p - q), y1 = ROW_Y[r1] + ROW_H / 2, y2 = ROW_Y[r2] + ROW_H / 2;
-      return `<div class="xo" style="left:${pct(o.x, ch.len)};top:${y1}px;height:${y2 - y1}px"><b data-k="${k}" role="button" aria-label="Remove crossover">✕</b></div>`;
-    }).join('')}</div></div></div>`;
-}
-
-function gameteCard(g, pickLabel) {
-  return `${pickLabel ? `<span class="pick">${pickLabel}</span>` : ''}${karyo([g])}${chips([g])}`;
-}
-
-function renderStage() {
-  const which = hand.step === 0 ? 'egg' : 'pollen';
-  document.querySelectorAll('#steps li').forEach((li) => {
-    const s = +li.dataset.s;
-    li.className = s === hand.step ? 'on' : s < hand.step ? 'done' : '';
-  });
-  const st = $('#stage');
-  if (hand.step === 2) {
-    st.innerHTML = `<h3>Fertilization: egg + pollen = offspring ${hand.pop.length}</h3>
-      <div class="pair"><div><h3>Egg</h3><div class="gam static">${gameteCard(hand.egg)}</div></div><div><h3>Pollen</h3><div class="gam static">${gameteCard(hand.pollen)}</div></div></div>
-      <h3>Offspring genotype at each marker</h3>
-      <div class="kid new">${karyo(hand.pop[hand.pop.length - 1].g, { head: true, lab: true })}${chips(hand.pop[hand.pop.length - 1].g)}</div>
-      <p class="hint">The offspring got one chromosome of each pair from the egg and one from the pollen. It has been added to your population below.</p>
-      <div class="controls"><button class="btn primary" id="again">Make another offspring</button></div>`;
-    $('#again').onclick = () => { hand.step = 0; hand.phase = 'place'; hand.xos = [[], []]; renderStage(); st.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
-    return;
-  }
-  if (hand.phase === 'place') {
-    const n = hand.xos[0].length + hand.xos[1].length;
-    st.innerHTML = `<h3>Make the ${which}: meiosis in the F1</h3>
-      <p class="note">Each chromosome has been copied into two sister chromatids, and the blue and orange homologs have paired up. <b>Tap a chromosome to place a crossover</b> between two non-sister chromatids. Tap ✕ to remove one.</p>
-      ${bivalentHTML(0)}${bivalentHTML(1)}
-      <p class="hint">${n ? `${n} crossover${n > 1 ? 's' : ''} placed. Look at which markers now sit on a recombinant chromatid.` : 'No crossovers yet. Chromosome pairs usually have at least one.'}</p>
-      <div class="controls"><button class="btn primary" id="divide">Divide the cell →</button><button class="btn ghost" id="randxo">Random crossovers</button><button class="btn ghost" id="clearxo" ${n ? '' : 'disabled'}>Clear</button></div>
-      <button class="btn ghost small" id="skip">Skip: let the computer make the ${which}</button>`;
-    st.querySelectorAll('.bivalent').forEach((el) => {
-      el.onclick = (e) => {
-        const c = +el.dataset.c, list = hand.xos[c], b = e.target.closest('b[data-k]');
-        if (b) list.splice(+b.dataset.k, 1);
-        else if (list.length < MAX_XO) {
-          const rect = el.querySelector('.strands').getBoundingClientRect();
-          const x = Math.min(CHRS[c].len - 1, Math.max(1, (e.clientX - rect.left) / rect.width * CHRS[c].len));
-          list.push({ x, i: rnd(2), j: 2 + rnd(2) });
-        }
-        renderStage();
-      };
-    });
-    $('#randxo').onclick = () => {
-      hand.xos = CHRS.map((ch) => Array.from({ length: Math.min(MAX_XO, poisson(ch.len / 50)) }, () => ({ x: 1 + Math.random() * (ch.len - 2), i: rnd(2), j: 2 + rnd(2) })));
-      renderStage();
-    };
-    $('#clearxo').onclick = () => { hand.xos = [[], []]; renderStage(); };
-    $('#skip').onclick = () => choose(simGamete());
-    $('#divide').onclick = () => {
-      // Meiosis I: each homolog pair orients at random (independent assortment).
-      // Meiosis II: sister chromatids separate.
-      const perChr = CHRS.map((ch, c) => {
-        const { rows } = resolveBivalent(ch, hand.xos[c]);
-        const top = rnd(2), halves = [[rows[0], rows[1]], [rows[2], rows[3]]].map((h) => (rnd(2) ? h : [h[1], h[0]]));
-        return top ? [halves[1], halves[0]] : halves;
-      });
-      hand.products = [0, 1].map((cell) => [0, 1].map((m) => perChr.map((p) => p[cell][m])));
-      hand.phase = 'pick'; renderStage();
-    };
-    return;
-  }
-  st.innerHTML = `<h3>Four gametes: pick one to be the ${which}</h3>
-    <p class="note"><b>Meiosis I</b> pulled the homologs into two cells. <b>Meiosis II</b> split the sister chromatids, giving four gametes with one copy of each chromosome.</p>
-    ${hand.products.map((cell, k) => `<div class="gcell"><div class="lab">From meiosis I cell ${k + 1}</div>${cell.map((g, m) => `<button class="gam" data-k="${k}" data-m="${m}">${gameteCard(g, 'Pick')}</button>`).join('')}</div>`).join('')}
-    <div class="controls"><button class="btn ghost" id="back">← Change crossovers</button></div>`;
-  st.querySelectorAll('.gam').forEach((b) => { b.onclick = () => choose(hand.products[+b.dataset.k][+b.dataset.m]); });
-  $('#back').onclick = () => { hand.phase = 'place'; renderStage(); };
-}
-
-function choose(g) {
-  if (hand.step === 0) { hand.egg = g; hand.step = 1; } else {
-    hand.pollen = g; hand.step = 2;
-    hand.pop.push(makeKid(hand.egg, hand.pollen)); saveHand(); renderHandPop();
-  }
-  hand.phase = 'place'; hand.xos = [[], []];
-  renderStage();
-  $('#steps').scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
-function renderHandPop() {
-  const n = hand.pop.length;
-  $('#hand-n').textContent = n ? `n = ${n}` : '';
-  $('#hand-pop').innerHTML = n
-    ? hand.pop.map((k, i) => `<div class="kid"><div class="id">Offspring ${i + 1}</div>${karyo(k.g)}${chips(k.g)}</div>`).reverse().join('')
-    : '<p class="empty">No offspring yet. Make an egg and a pollen grain above.</p>';
-  renderHeat($('#hand-heat'), $('#hand-detail'), hand.pop, hand.heat, false);
-}
-$('#hand-reset').onclick = () => {
-  if (hand.pop.length && !confirm('Remove all of your offspring and start over?')) return;
-  hand.pop = []; hand.step = 0; hand.phase = 'place'; hand.xos = [[], []]; hand.heat.sel = null;
-  saveHand(); renderStage(); renderHandPop();
-};
-
-// ---------- Activity 2: simulation ----------
+// ---------- population ----------
 const sim = { pop: [], view: 'hap', heat: {} };
 const GAP = 14;
 
@@ -375,20 +271,97 @@ function renderScatter() {
 
 function renderSim() {
   drawPop();
-  renderHeat($('#sim-heat'), $('#sim-detail'), sim.pop, sim.heat, true);
+  renderHeat($('#sim-heat'), $('#sim-detail'), sim.pop, sim.heat);
   renderScatter();
 }
-function addSim(n) { for (let k = 0; k < n; k++) sim.pop.push(makeKid(simGamete(), simGamete())); renderSim(); }
 function renderLegend() {
   $('#sim-legend').innerHTML = sim.view === 'hap'
-    ? '<span><i class="sw p1"></i> from blue parent</span><span><i class="sw p2"></i> from orange parent</span>'
-    : '<span><i class="sw p1"></i> homozygous blue</span><span><i class="sw het"></i> heterozygous</span><span><i class="sw p2"></i> homozygous orange</span>';
+    ? '<span><i class="sw p1"></i> from blue parent</span><span><i class="sw p2"></i> from red parent</span>'
+    : '<span><i class="sw p1"></i> homozygous blue</span><span><i class="sw het"></i> heterozygous</span><span><i class="sw p2"></i> homozygous red</span>';
 }
+
+// ---------- animated single offspring ----------
+// Phases: 0 paired homologs, 1 crossovers, 2 one chromatid chosen per
+// chromosome, 3 gametes fly together, 4 offspring with base calls.
+const M_Y = [0, 11, 28, 39], M_H = 9;
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+let anim = null;
+
+function meiosisCol(m, w) {
+  return `<div class="mcol" data-w="${w}"><h3>${w ? 'Pollen' : 'Egg'}</h3>${CHRS.map((ch, c) => `<div class="mbiv" data-c="${c}" style="width:${pct(ch.len, CHRS[0].len)}">${mkHead(c)}
+    <div class="strands">${[0, 1, 2, 3].map((r) => `<div class="strand" data-r="${r}" style="top:${M_Y[r]}px;background:${COL[r < 2 ? 0 : 1]}"></div>`).join('')}
+    ${ch.markers.map(([, p]) => `<i class="mline" style="left:${pct(p, ch.len)}"></i>`).join('')}
+    ${m.chr[c].xos.map((o, k) => {
+      const [r1, r2] = m.chr[c].links[k].slice().sort((p, q) => p - q), y1 = M_Y[r1] + M_H / 2, y2 = M_Y[r2] + M_H / 2;
+      return `<div class="xo" style="left:${pct(o.x, ch.len)};top:${y1}px;height:${y2 - y1}px"><b>✕</b></div>`;
+    }).join('')}</div></div>`).join('')}</div>`;
+}
+
+function animate() {
+  const st = $('#stage'), ms = [simMeiosis(), simMeiosis()], kid = makeKid(ms[0].g, ms[1].g), num = sim.pop.length + 1;
+  const nxo = ms.reduce((s, m) => s + m.chr.reduce((t, b) => t + b.xos.length, 0), 0);
+  const caps = [
+    'Meiosis in the F1: each chromosome has been copied into two sister chromatids, and the blue and red homologs pair up.',
+    nxo ? `Crossovers (✕) swap segments between non-sister chromatids: ${nxo} in these two meioses.` : 'No crossovers happened in these two meioses.',
+    'Each gamete receives one chromatid of each chromosome.',
+    'The egg and the pollen come together.',
+    `Offspring ${num}: its base calls at sites A–G come from the two chromosomes it inherited (egg on top, pollen below).`,
+  ];
+  st.innerHTML = `<div class="meio">${meiosisCol(ms[0], 0)}${meiosisCol(ms[1], 1)}</div>
+    <p class="hint" id="cap"></p>
+    <div class="kid"><div class="id">Offspring ${num}</div>${karyo(kid.g, { head: true, lab: true })}${chips(kid.g)}</div>`;
+  const timers = [];
+  let finished = false;
+  const strand = (w, c, r) => st.querySelector(`.mcol[data-w="${w}"] .mbiv[data-c="${c}"] .strand[data-r="${r}"]`);
+  const setPhase = (p) => {
+    st.dataset.phase = p;
+    $('#cap').textContent = caps[p];
+    if (p >= 1) ms.forEach((m, w) => CHRS.forEach((ch, c) => m.chr[c].rows.forEach((segs, r) => { strand(w, c, r).style.background = gradient(segs, ch.len); })));
+    if (p >= 2) ms.forEach((m, w) => CHRS.forEach((ch, c) => strand(w, c, m.chr[c].pick).classList.add('picked')));
+  };
+  const finish = () => {
+    if (finished) return;
+    finished = true; timers.forEach(clearTimeout); anim = null;
+    st.querySelectorAll('.fly').forEach((f) => f.remove());
+    setPhase(4);
+    sim.pop.push(kid); renderSim();
+  };
+  const fly = () => {
+    setPhase(3);
+    const base = st.getBoundingClientRect();
+    ms.forEach((m, w) => CHRS.forEach((ch, c) => {
+      const a = strand(w, c, m.chr[c].pick).getBoundingClientRect();
+      const b = st.querySelectorAll('.kid .chrom')[c].querySelectorAll('.bar')[w].getBoundingClientRect();
+      const f = document.createElement('div');
+      f.className = 'fly';
+      f.style.cssText = `left:${a.left - base.left}px;top:${a.top - base.top}px;width:${a.width}px;height:${a.height}px;background:${gradient(m.chr[c].rows[m.chr[c].pick], ch.len)}`;
+      st.appendChild(f);
+      f.getBoundingClientRect(); // commit the start position before transitioning
+      f.style.transform = `translate(${b.left - a.left}px, ${b.top - a.top}px) scale(${b.width / a.width}, ${b.height / a.height})`;
+    }));
+  };
+  anim = { finish };
+  setPhase(0);
+  if (reduceMotion) { finish(); return; }
+  timers.push(setTimeout(() => setPhase(1), 900), setTimeout(() => setPhase(2), 2300), setTimeout(fly, 3500), setTimeout(finish, 4600));
+}
+
 $('#sim-head').innerHTML = CHRS.map((ch, c) => `<div style="flex:${ch.len};min-width:0">${mkHead(c)}</div>`).join('');
-$('#sim-one').onclick = () => addSim(1);
-$('#sim-many').onclick = () => addSim(+$('#sim-x').value);
+// A click during an animation completes the offspring in progress first.
+$('#sim-one').onclick = () => { if (anim) anim.finish(); animate(); };
+$('#sim-many').onclick = () => {
+  if (anim) anim.finish();
+  for (let k = +$('#sim-x').value; k > 0; k--) sim.pop.push(makeKid(simGamete(), simGamete()));
+  renderSim();
+};
 $('#sim-x').onchange = (e) => { $('#sim-x-label').textContent = e.target.value; };
-$('#sim-reset').onclick = () => { sim.pop = []; sim.heat.sel = null; renderSim(); };
+$('#sim-reset').onclick = () => {
+  if (anim) anim.finish();
+  sim.pop = []; sim.heat.sel = null;
+  $('#stage').innerHTML = '<p class="empty">Simulate one offspring to watch the F1 make an egg and a pollen grain.</p>';
+  delete $('#stage').dataset.phase;
+  renderSim();
+};
 document.querySelectorAll('.seg button').forEach((b) => {
   b.onclick = () => {
     sim.view = b.dataset.view;
@@ -397,15 +370,7 @@ document.querySelectorAll('.seg button').forEach((b) => {
   };
 });
 
-// ---------- tabs, tooltip, resize ----------
-document.querySelectorAll('.tab').forEach((t) => {
-  t.onclick = () => {
-    document.querySelectorAll('.tab').forEach((o) => { o.classList.toggle('on', o === t); o.setAttribute('aria-selected', o === t); });
-    $('#tab-hand').hidden = t.dataset.tab !== 'hand';
-    $('#tab-sim').hidden = t.dataset.tab !== 'sim';
-    if (t.dataset.tab === 'sim') renderSim();
-  };
-});
+// ---------- tooltip, resize ----------
 const tip = $('#tip');
 let tipTimer;
 function showTip(e) {
@@ -422,6 +387,6 @@ document.addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse')
 document.addEventListener('click', showTip);
 window.addEventListener('scroll', () => { tip.hidden = true; }, { passive: true });
 let rz;
-window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { if (!$('#tab-sim').hidden) drawPop(); }, 150); });
+window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(drawPop, 150); });
 
-renderStage(); renderHandPop(); renderLegend();
+renderLegend(); renderSim();

@@ -6,10 +6,11 @@ An interactive teaching game for PLS 152 on genetic linkage and recombination. I
 
 ## What students do
 
-The organism has two chromosomes (n = 2) carrying seven markers: A–D on chromosome 1 and E–G on chromosome 2. Two inbred parents (blue and orange) are crossed, and the F1 is selfed.
+The organism has two chromosomes (n = 2) carrying seven marker sites: A–D on chromosome 1 and E–G on chromosome 2. Each site is a SNP where the blue parent and the red parent carry different DNA bases. The two inbred parents are crossed, and the F1 is selfed.
 
-1. **Build offspring by hand.** Walk through meiosis in the F1: tap the paired chromosomes to place crossovers, divide the cell, and pick one of the four gametes as the egg. Repeat for the pollen. The offspring shows its genotype at every marker. After a few offspring, a heat map shows the recombination frequency between every pair of markers, estimated from the offspring genotypes.
-2. **Simulate a population.** Simulate one offspring at a time or hundreds at once. Each offspring is drawn as chromosomes colored by parental origin (or by zygosity), so crossovers are visible. As the F2 population grows the estimates settle: close markers recombine rarely, distant markers more often, and markers on different chromosomes level off at 50%.
+- **Simulate offspring** makes one F2 plant and animates it: meiosis in the F1 for the egg and the pollen with crossovers shown, one chromatid of each chromosome going into each gamete, the gametes coming together, and the offspring's base calls at sites A–G next to its chromosomes.
+- **Simulate [x] offspring** makes many at once. Each offspring is drawn as chromosomes colored by parental origin (or by zygosity), so crossovers are visible.
+- A heat map and a plot show the recombination frequency between every pair of markers, estimated from the offspring genotypes. As the F2 population grows the estimates settle: close markers recombine rarely, distant markers more often, and markers on different chromosomes level off at 50%.
 
 ## How it works
 

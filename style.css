@@ -7,9 +7,9 @@
   --muted: #8a8880;
   --line: #e3e1da;
   --p1: #2a78d6;
-  --p2: #eb6834;
+  --p2: #e34948;
   --p1-tint: #d6e6fa;
-  --p2-tint: #fbdccd;
+  --p2-tint: #fbdad9;
   --het: #b9b6ad;
   --accent: #4a3aa7;
   --accent-tint: #ecebf7;
@@ -37,12 +37,6 @@ h3 { font-size: .95rem; margin: 0 0 6px; }
 .sw.p1 { background: var(--p1); } .sw.p2 { background: var(--p2); } .sw.het { background: var(--het); }
 .foot { color: var(--muted); font-size: .8rem; padding-bottom: 40px; }
 
-/* tabs */
-.tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; background: #e7e5de; padding: 5px; border-radius: 14px; margin-bottom: 14px; position: sticky; top: 6px; z-index: 5; }
-.tab { border: 0; background: transparent; padding: 10px 8px; border-radius: 10px; font: inherit; font-weight: 600; font-size: .9rem; color: var(--ink2); cursor: pointer; line-height: 1.2; }
-.tab.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
-.tab .num { display: inline-grid; place-items: center; width: 1.45em; height: 1.45em; border-radius: 50%; background: var(--accent); color: #fff; font-size: .8em; margin-right: 4px; }
-
 /* buttons */
 .btn { font: inherit; font-weight: 600; border-radius: 10px; border: 1px solid transparent; padding: 11px 16px; min-height: 44px; cursor: pointer; touch-action: manipulation; }
 .btn.primary { background: var(--accent); color: #fff; }
@@ -50,7 +44,7 @@ h3 { font-size: .95rem; margin: 0 0 6px; }
 .btn.ghost { background: transparent; border-color: var(--line); color: var(--ink); }
 .btn.small { padding: 6px 12px; min-height: 36px; font-size: .85rem; }
 .btn:disabled { opacity: .45; cursor: default; }
-.controls { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 14px; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 14px; position: sticky; top: 0; z-index: 5; background: var(--surface); padding: 6px 0; }
 .combo { display: flex; }
 .combo .btn { border-radius: 10px 0 0 10px; }
 .combo select { font: inherit; font-weight: 600; border: 0; border-left: 1px solid rgba(255,255,255,.35); background: #3b2e8a; color: #fff; border-radius: 0 10px 10px 0; padding: 0 8px; min-height: 44px; }
@@ -59,13 +53,6 @@ h3 { font-size: .95rem; margin: 0 0 6px; }
 .seg button.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
 .legend { display: flex; gap: 10px; flex-wrap: wrap; font-size: .8rem; color: var(--ink2); }
 .viewrow { margin-bottom: 10px; }
-
-/* steps */
-.steps { scroll-margin-top: 70px; list-style: none; display: flex; gap: 6px; padding: 0; margin: 0 0 14px; counter-reset: s; }
-.steps li { flex: 1; counter-increment: s; font-size: .82rem; font-weight: 600; color: var(--muted); border-top: 3px solid var(--line); padding-top: 6px; }
-.steps li::before { content: counter(s) ". "; }
-.steps li.on { color: var(--accent); border-color: var(--accent); }
-.steps li.done { color: var(--ink2); border-color: #a59dd6; }
 
 /* chromosomes */
 .karyo { display: flex; gap: 14px; align-items: flex-start; }
@@ -78,10 +65,13 @@ h3 { font-size: .95rem; margin: 0 0 6px; }
 .bars .tick { position: absolute; top: -2px; bottom: -2px; width: 0; border-left: 1.5px solid rgba(255,255,255,.9); pointer-events: none; }
 .bars .cen { position: absolute; width: 8px; height: 8px; margin: 2px 0 0 -4px; border-radius: 50%; background: rgba(255,255,255,.85); box-shadow: 0 0 0 1px rgba(0,0,0,.25); pointer-events: none; }
 .chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
-.chip { font: 600 .8rem/1 ui-monospace, SFMono-Regular, Menlo, monospace; padding: 5px 6px; border-radius: 6px; color: var(--ink); min-width: 1.7em; text-align: center; }
-.chip.a0 { background: var(--p1-tint); box-shadow: inset 0 -2px 0 var(--p1); }
-.chip.a1 { background: var(--p2-tint); box-shadow: inset 0 -2px 0 var(--p2); }
-.chip.h { background: linear-gradient(90deg, var(--p1-tint) 50%, var(--p2-tint) 50%); box-shadow: inset 0 -2px 0 var(--het); }
+.chip { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; }
+.chip .site { font-size: .62rem; font-weight: 700; color: var(--muted); line-height: 1; }
+.chip .call { display: inline-flex; align-items: center; font: 600 .78rem/1 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--ink); }
+.chip .call b { padding: 4px 3.5px; border-radius: 4px; font-weight: 600; }
+.chip .call b.a0 { background: var(--p1-tint); box-shadow: inset 0 -2px 0 var(--p1); }
+.chip .call b.a1 { background: var(--p2-tint); box-shadow: inset 0 -2px 0 var(--p2); }
+.chip .call i { font-style: normal; color: var(--muted); width: 6px; text-align: center; font-size: .7rem; }
 .chips .sep { width: 6px; }
 
 /* the cross diagram */
@@ -91,31 +81,31 @@ h3 { font-size: .95rem; margin: 0 0 6px; }
 .cross .f1 { grid-column: 1 / -1; max-width: 340px; margin: 0 auto; width: 100%; }
 .cross .arrow { grid-column: 1 / -1; text-align: center; color: var(--muted); line-height: 1; }
 
-/* meiosis */
-.biv-wrap { margin: 14px 0 6px; }
-.bivalent { position: relative; padding: 4px 0; touch-action: manipulation; cursor: crosshair; user-select: none; -webkit-user-select: none; }
-.strands { position: relative; height: 82px; }
-.strand { position: absolute; left: 0; right: 0; height: 14px; border-radius: 7px; }
-.strands .mline { position: absolute; top: -4px; bottom: -4px; border-left: 1.5px dashed rgba(22,22,26,.45); pointer-events: none; }
-.strands .cenp { position: absolute; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; background: rgba(255,255,255,.9); box-shadow: 0 0 0 1px rgba(0,0,0,.3); pointer-events: none; }
-.xo { position: absolute; width: 0; border-left: 2.5px solid var(--ink); pointer-events: none; }
-.xo b { position: absolute; left: -15px; top: 50%; margin-top: -14px; width: 28px; height: 28px; border-radius: 50%; background: var(--ink); color: #fff; display: grid; place-items: center; font-size: 15px; line-height: 1; pointer-events: auto; cursor: pointer; box-shadow: 0 0 0 2px var(--surface); }
-.hint { font-size: .85rem; color: var(--ink2); background: var(--accent-tint); border-radius: 10px; padding: 9px 12px; margin: 10px 0; }
-.gcell { border: 1px dashed #c9c6bc; border-radius: 12px; padding: 8px; margin-bottom: 10px; }
-.gcell > .lab { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin: 0 2px 6px; }
-.gam { display: block; width: 100%; text-align: left; font: inherit; color: inherit; background: var(--surface); border: 2px solid var(--line); border-radius: 10px; padding: 10px; margin-bottom: 6px; cursor: pointer; touch-action: manipulation; }
-.gam:last-child { margin-bottom: 0; }
-.gam:hover, .gam:focus-visible { border-color: var(--accent); outline: none; }
-.gam .pick { float: right; font-size: .75rem; font-weight: 700; color: var(--accent); }
-.gam.static { cursor: default; border-width: 1px; }
-.gam.static:hover { border-color: var(--line); }
-.kid { border: 1px solid var(--line); border-radius: 10px; padding: 10px; margin-bottom: 8px; }
-.kid.new { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-tint); }
+/* animated meiosis */
+.stage { position: relative; }
+.meio { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.mcol h3 { font-size: .8rem; color: var(--ink2); margin: 0 0 2px; }
+.mbiv { margin-bottom: 8px; }
+.mbiv .mk-head { font-size: .62rem; height: 13px; }
+.strands { position: relative; height: 48px; margin-top: 4px; }
+.strand { position: absolute; left: 0; right: 0; height: 9px; border-radius: 4.5px; transition: opacity .5s; }
+.strands .mline { position: absolute; top: -2px; bottom: -2px; border-left: 1px dashed rgba(22,22,26,.4); pointer-events: none; }
+.xo { position: absolute; width: 0; border-left: 2px solid var(--ink); opacity: 0; transition: opacity .4s; }
+.xo b { position: absolute; left: -8px; top: 50%; margin-top: -7px; width: 14px; height: 14px; border-radius: 50%; background: var(--ink); color: #fff; display: grid; place-items: center; font-size: 8px; line-height: 1; box-shadow: 0 0 0 1.5px var(--surface); transform: scale(.2); transition: transform .4s cubic-bezier(.3,1.6,.6,1); }
+.stage:not([data-phase="0"]) .xo { opacity: 1; }
+.stage:not([data-phase="0"]) .xo b { transform: none; }
+.stage:is([data-phase="2"],[data-phase="3"],[data-phase="4"]) .strand:not(.picked) { opacity: .16; }
+.stage:is([data-phase="2"],[data-phase="3"],[data-phase="4"]) .xo { opacity: .12; }
+.stage[data-phase="3"] .strand.picked { opacity: .16; }
+.strand.picked { box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--ink); z-index: 1; }
+.fly { position: absolute; z-index: 3; border-radius: 5px; transform-origin: 0 0; transition: transform 1s cubic-bezier(.5,0,.2,1); box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+.hint { font-size: .85rem; color: var(--ink2); background: var(--accent-tint); border-radius: 10px; padding: 9px 12px; margin: 6px 0 10px; min-height: 4.2em; }
+.kid { border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
 .kid .id { font-size: .75rem; font-weight: 700; color: var(--muted); margin-bottom: 4px; }
+.kid .bar, .kid .tick, .kid .chips { transition: opacity .5s; }
+.stage:not([data-phase="4"]) .kid :is(.bar, .tick, .chips) { opacity: 0; transition: none; }
+.stage[data-phase="4"] .kid { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-tint); }
 .empty { color: var(--muted); font-size: .9rem; text-align: center; padding: 18px 0; margin: 0; }
-.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
-.pair h3 { font-size: .78rem; color: var(--ink2); }
-@media (max-width: 480px) { .pair { grid-template-columns: 1fr; } }
 
 /* population canvas */
 .pophead { display: flex; gap: 14px; }
@@ -137,5 +127,4 @@ h3 { font-size: .95rem; margin: 0 0 6px; }
 .scatter { width: 100%; display: block; }
 .scatter text { font-family: inherit; fill: var(--ink2); }
 .tip { position: fixed; z-index: 20; pointer-events: none; background: var(--ink); color: #fff; font-size: .8rem; padding: 6px 9px; border-radius: 7px; max-width: 220px; line-height: 1.35; }
-
-#stage { scroll-margin-top: 110px; }
+@media (max-width: 370px) { .chip .call { font-size: .68rem; } .chip .call b { padding: 4px 2.5px; } .chips { gap: 3px; } }

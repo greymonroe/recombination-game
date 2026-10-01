@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light">
 <title>Linkage &amp; Recombination Lab</title>
-<meta name="description" content="Make gametes by hand, build an F2 population, and watch recombination frequencies emerge between markers.">
+<meta name="description" content="Simulate meiosis and an F2 population, and watch recombination frequencies emerge between markers.">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -21,79 +21,50 @@
   <section class="card" id="setup">
     <h2>The cross</h2>
     <div id="cross"></div>
-    <p class="note">The organism has two chromosomes (n&nbsp;=&nbsp;2) carrying seven markers, <b>A–D</b> on chromosome 1 and <b>E–G</b> on chromosome 2. The <span class="sw p1"></span> blue parent carries the uppercase allele at every marker and the <span class="sw p2"></span> orange parent carries the lowercase allele, so the F1 is heterozygous everywhere.</p>
+    <p class="note">The organism has two chromosomes (n&nbsp;=&nbsp;2) carrying seven marker sites, <b>A–D</b> on chromosome 1 and <b>E–G</b> on chromosome 2. At each site the <span class="sw p1"></span> blue parent has one DNA base and the <span class="sw p2"></span> red parent has a different one, so the F1 is heterozygous at every site.</p>
   </section>
 
-  <nav class="tabs" role="tablist">
-    <button class="tab on" role="tab" aria-selected="true" data-tab="hand"><span class="num">1</span> Build offspring by hand</button>
-    <button class="tab" role="tab" aria-selected="false" data-tab="sim"><span class="num">2</span> Simulate a population</button>
-  </nav>
-
-  <!-- Activity 1 -->
-  <div id="tab-hand" class="panel">
-    <section class="card">
-      <ol class="steps" id="steps">
-        <li data-s="0">Egg</li><li data-s="1">Pollen</li><li data-s="2">Offspring</li>
-      </ol>
-      <div id="stage"></div>
-    </section>
-
-    <section class="card">
-      <div class="row between">
-        <h2>Your offspring <span class="count" id="hand-n"></span></h2>
-        <button class="btn ghost small" id="hand-reset">Start over</button>
+  <section class="card">
+    <h2>Make F2 offspring <span class="count" id="sim-n"></span></h2>
+    <div class="controls">
+      <button class="btn primary" id="sim-one">Simulate offspring</button>
+      <div class="combo">
+        <button class="btn primary" id="sim-many">Simulate <span id="sim-x-label">100</span> offspring</button>
+        <select id="sim-x" aria-label="Number of offspring to simulate">
+          <option>10</option><option>50</option><option selected>100</option><option>500</option><option>1000</option>
+        </select>
       </div>
-      <div id="hand-pop"></div>
-    </section>
+      <button class="btn ghost" id="sim-reset">Reset</button>
+    </div>
+    <div id="stage" class="stage"><p class="empty">Simulate one offspring to watch the F1 make an egg and a pollen grain.</p></div>
+  </section>
 
-    <section class="card">
-      <h2>Recombination frequency between markers</h2>
-      <p class="note">Estimated only from the marker genotypes of your offspring, the way it would be from real genotype data. Tap a square for details.</p>
-      <div id="hand-heat"></div>
-      <div id="hand-detail"></div>
-    </section>
-  </div>
-
-  <!-- Activity 2 -->
-  <div id="tab-sim" class="panel" hidden>
-    <section class="card">
-      <h2>F2 population <span class="count" id="sim-n"></span></h2>
-      <p class="note">Each offspring comes from two F1 gametes. Crossovers fall at random along each chromosome.</p>
-      <div class="controls">
-        <button class="btn primary" id="sim-one">Simulate offspring</button>
-        <div class="combo">
-          <button class="btn primary" id="sim-many">Simulate <span id="sim-x-label">100</span> offspring</button>
-          <select id="sim-x" aria-label="Number of offspring to simulate">
-            <option>10</option><option>50</option><option selected>100</option><option>500</option><option>1000</option>
-          </select>
-        </div>
-        <button class="btn ghost" id="sim-reset">Reset</button>
+  <section class="card">
+    <h2>F2 population</h2>
+    <div class="row between viewrow">
+      <div class="seg" role="group" aria-label="Chromosome view">
+        <button class="on" data-view="hap">Two homologs</button>
+        <button data-view="zyg">Genotype</button>
       </div>
-      <div class="row between viewrow">
-        <div class="seg" role="group" aria-label="Chromosome view">
-          <button class="on" data-view="hap">Two homologs</button>
-          <button data-view="zyg">Genotype</button>
-        </div>
-        <div class="legend" id="sim-legend"></div>
-      </div>
-      <div id="sim-head" class="pophead"></div>
-      <div id="sim-scroll" class="popscroll"><canvas id="sim-canvas"></canvas><p class="empty" id="sim-empty">No offspring yet. Simulate one to start.</p></div>
-      <p class="note" id="sim-shown"></p>
-    </section>
+      <div class="legend" id="sim-legend"></div>
+    </div>
+    <div id="sim-head" class="pophead"></div>
+    <div id="sim-scroll" class="popscroll"><canvas id="sim-canvas"></canvas><p class="empty" id="sim-empty">No offspring yet.</p></div>
+    <p class="note" id="sim-shown"></p>
+  </section>
 
-    <section class="card">
-      <h2>Recombination frequency between markers</h2>
-      <p class="note">Estimated from the offspring marker genotypes. Tap a square for details.</p>
-      <div id="sim-heat"></div>
-      <div id="sim-detail"></div>
-    </section>
+  <section class="card">
+    <h2>Recombination frequency between markers</h2>
+    <p class="note">Estimated from the offspring marker genotypes. Tap a square for details.</p>
+    <div id="sim-heat"></div>
+    <div id="sim-detail"></div>
+  </section>
 
-    <section class="card">
-      <h2>Recombination frequency and distance</h2>
-      <p class="note">Each dot is one pair of markers. Pairs on the same chromosome are placed by the distance between them; pairs on different chromosomes are grouped at the right.</p>
-      <div id="sim-scatter"></div>
-    </section>
-  </div>
+  <section class="card">
+    <h2>Recombination frequency and distance</h2>
+    <p class="note">Each dot is one pair of markers. Pairs on the same chromosome are placed by the distance between them; pairs on different chromosomes are grouped at the right.</p>
+    <div id="sim-scatter"></div>
+  </section>
 </main>
 
 <footer class="wrap foot">
